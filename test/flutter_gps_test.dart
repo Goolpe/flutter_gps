@@ -3,13 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_gps/flutter_gps.dart';
 
 void main() {
-  const MethodChannel channel = MethodChannel('flutter_gps');
+  const MethodChannel channel = MethodChannel('flutter.goolpe.com/methods');
 
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
     channel.setMockMethodCallHandler((MethodCall methodCall) async {
-      return '42';
+      return false;
     });
   });
 
@@ -17,7 +17,11 @@ void main() {
     channel.setMockMethodCallHandler(null);
   });
 
-  test('getPlatformVersion', () async {
-    expect(await FlutterGPS.platformVersion, '42');
+  test('getGPSState', () async {
+    expect(await FlutterGPS().stateGPS, false);
+  });
+
+  test('getGPSRequest', () async {
+    expect(await FlutterGPS().requestGPS, false);
   });
 }

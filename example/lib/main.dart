@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_gps/flutter_gps.dart';
 
-void main() {
-  runApp(MyApp());
-}
+void main() => runApp(MyApp());
 
 class MyApp extends StatefulWidget {
   @override
@@ -14,32 +11,29 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
+  bool _isGPSEnabled = false;
+  StreamSubscription<bool> _gpsSubscription;
+  FlutterGPS gps = FlutterGPS();
 
   @override
   void initState() {
     super.initState();
-    initPlatformState();
+    initGPSState();
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    try {
-      platformVersion = await FlutterGPS.platformVersion;
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
+  Future<void> initGPSState() async {
+    //get current state of gps
+    bool _state = await gps.stateGPS;
+    _upadateGPS(_state);
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
+    //subscribe to get gps state whenever the this state changes
+    _gpsSubscription = gps.onGPSStateChanged.listen((bool newState){  
+      _upadateGPS(newState);
     });
+  }
+
+  void _upadateGPS(bool state){
+    setState(() => _isGPSEnabled = state);
   }
 
   @override
@@ -50,9 +44,25 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Plugin example app'),
         ),
         body: Center(
-          child: Text('Running on: $_platformVersion\n'),
-        ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text('GPS status: $_isGPSEnabled'),
+              !_isGPSEnabled
+              ? RaisedButton(
+                child: Text('requestGPS'),
+                onPressed: () async => await gps.requestGPS,
+              ) : SizedBox()
+            ],
+          )
+        )
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _gpsSubscription?.cancel();
+    super.dispose();
   }
 }
