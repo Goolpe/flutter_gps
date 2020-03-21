@@ -22,13 +22,10 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
-import io.flutter.plugin.common.BinaryMessenger
-import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.*
 import io.flutter.plugin.common.EventChannel.EventSink
-import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import io.flutter.plugin.common.PluginRegistry.Registrar
+
 
 class FlutterGPSPlugin : MethodCallHandler, EventChannel.StreamHandler, FlutterPlugin, ActivityAware {
   private var applicationContext: Context? = null
@@ -74,7 +71,7 @@ class FlutterGPSPlugin : MethodCallHandler, EventChannel.StreamHandler, FlutterP
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     when(call.method){
-      "stateGPS" -> result.success(stateGPS)
+      "stateGPS" -> result.success(checkGPSState())
       "requestGPS" -> result.success(requestGPS)
       else -> result.notImplemented()
     }
@@ -91,15 +88,14 @@ class FlutterGPSPlugin : MethodCallHandler, EventChannel.StreamHandler, FlutterP
     chargingStateChangeReceiver = null
   }
 
-  private val stateGPS: Boolean
-    private get() {
-      return checkLocationManager()
-    }
-
   private val requestGPS: Boolean
     private get() {
+      
+      //request gps
       val locationRequest = LocationRequest.create()
       locationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+
+      //create builder for gps alert
       val builder = LocationSettingsRequest.Builder()
           .addLocationRequest(locationRequest)
           .setAlwaysShow(true);
@@ -112,30 +108,29 @@ class FlutterGPSPlugin : MethodCallHandler, EventChannel.StreamHandler, FlutterP
           // All location settings are satisfied. The client can initialize location
         } catch (exception: ApiException) {
           when (exception.statusCode) {
-            LocationSettingsStatusCodes.RESOLUTION_REQUIRED ->  // Location settings are not satisfied. But could be fixed by showing the
-              try { // Cast to a resolvable exception.
+            LocationSettingsStatusCodes.RESOLUTION_REQUIRED -> 
+              try {
+                // Cast to a resolvable exception.
                 val resolvable = exception as ResolvableApiException
                 // Show the dialog by calling startResolutionForResult(),
                 resolvable.startResolutionForResult(
                         activity,
                         LocationRequest.PRIORITY_HIGH_ACCURACY)
-              } catch (e: SendIntentException) { // Ignore the error.
-              } catch (e: ClassCastException) { // Ignore, should be an impossible error.
-              }
-            LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE -> {
-            }
+              } 
+              catch (e: SendIntentException) {} 
+              catch (e: ClassCastException) {}
+            LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE -> {}
           }
         }
       }
-      return checkLocationManager()
+      return checkGPSState()
     }
 
   private fun createChargingStateChangeReceiver(events: EventSink?): BroadcastReceiver {
     return object : BroadcastReceiver() {
       override fun onReceive(context: Context?, intent: Intent?) {
         if (intent!!.action!! == "android.location.PROVIDERS_CHANGED") {
-          val isGPS = checkLocationManager()
-          Log.i("gps", isGPS.toString())
+          val isGPS = checkGPSState()
 
           if(isGPSEnabled == null || isGPSEnabled != isGPS){
             isGPSEnabled = isGPS
@@ -146,17 +141,10 @@ class FlutterGPSPlugin : MethodCallHandler, EventChannel.StreamHandler, FlutterP
     }
   }
 
-  private fun checkLocationManager(): Boolean{
-    val locationManager =
+  private fun checkGPSState(): Boolean{
+      val locationManager =
               applicationContext!!.getSystemService(LOCATION_SERVICE) as LocationManager
-    return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-  }
 
-  companion object {
-    /** Plugin registration.  */
-    fun registerWith(registrar: Registrar) {
-      val instance = FlutterGPSPlugin()
-      instance.onAttachedToEngine(registrar.context(), registrar.messenger())
-    }
+      return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
   }
 }
